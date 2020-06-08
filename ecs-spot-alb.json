@@ -1,0 +1,66 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "ParentSSHBastionStack",
+    "ParameterValue": "cashbook-vpc-ssh-bastion"
+  },
+  {
+    "ParameterKey": "ParentClientStack1",
+    "ParameterValue": "cashbook-client-sg"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": "ecsspot."
+  },
+  {
+    "ParameterKey": "SubnetsReach",
+    "ParameterValue": "Public"
+  },
+  {
+    "ParameterKey": "LoadBalancerCertificateArn",
+    "ParameterValue": "arn:aws:acm:ap-northeast-1:274682760725:certificate/23f25ad8-c784-4d1b-8283-5da7761a81ca"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "my-key"
+  },
+  {
+    "ParameterKey": "Image",
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/cashbook-rails"
+  },
+  {
+    "ParameterKey": "DesiredCapacity",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "MaxSize",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t2.micro"
+  },
+  {
+    "ParameterKey": "RailsMasiterKey",
+    "ParameterValue": "/cashbook/app/rails-master-key"
+  },
+  {
+    "ParameterKey": "DBHost",
+    "ParameterValue": "/cashbook/db/host"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/cashbook/db/password"
+  },
+  {
+    "ParameterKey": "RedisUrl",
+    "ParameterValue": "/cashbook/redis/url"
+  }
+]

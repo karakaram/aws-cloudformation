@@ -1,0 +1,46 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CodePipeline
+
+Parameters:
+  RepositoryName:
+    Type: String
+
+Resources:
+  AppECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "action": {
+                  "type": "expire"
+                },
+                "selection": {
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 5,
+                  "tagStatus": "any"
+                },
+                "description": "delete images",
+                "rulePriority": 1
+              }
+            ]
+          }
+
+Outputs:
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  RepositoryName:
+    Description: 'The Repository name for the ECR'
+    Value: !Ref RepositoryName
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryName'
+  RepositoryURI:
+    Description: 'The URI for the ECR'
+    Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepositoryName}'
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryURI'

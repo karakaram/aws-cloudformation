@@ -1,0 +1,66 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentClusterStack",
+    "ParameterValue": "cashbook-fargate-cluster"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "cashbook-alert"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "ParentClientStack1",
+    "ParameterValue": "cashbook-client-sg"
+  },
+  {
+    "ParameterKey": "LoadBalancerHttps",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "AppImage",
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/cashbook-rails"
+  },
+  {
+    "ParameterKey": "AppPort",
+    "ParameterValue": "3000"
+  },
+  {
+    "ParameterKey": "DesiredCount",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "MinCapacity",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "MaxCapacity",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "SubnetsReach",
+    "ParameterValue": "Public"
+  },
+  {
+    "ParameterKey": "RailsMasiterKey",
+    "ParameterValue": "/cashbook/app/rails-master-key"
+  },
+  {
+    "ParameterKey": "DBHost",
+    "ParameterValue": "/cashbook/db/host"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/cashbook/db/password"
+  },
+  {
+    "ParameterKey": "RedisUrl",
+    "ParameterValue": "/cashbook/redis/url"
+  }
+]

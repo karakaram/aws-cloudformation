@@ -1,0 +1,54 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentClientStack",
+    "ParameterValue": "cashbook-client-sg"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "cashbook-alert"
+  },
+  {
+    "ParameterKey": "DBMasterUsername",
+    "ParameterValue": "/cashbook/db/username"
+  },
+  {
+    "ParameterKey": "Engine",
+    "ParameterValue": "5.7.mysql-aurora.2.04.5"
+  },
+  {
+    "ParameterKey": "DBInstanceClass",
+    "ParameterValue": "db.t3.small"
+  },
+  {
+    "ParameterKey": "DBBackupRetentionPeriod",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/cashbook/db/password"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": "wdb."
+  },
+  {
+    "ParameterKey": "ReadSubDomainNameWithDot",
+    "ParameterValue": "rdb."
+  },
+  {
+    "ParameterKey": "PreferredBackupWindow",
+    "ParameterValue": "17:00-18:00"
+  },
+  {
+    "ParameterKey": "PreferredMaintenanceWindow",
+    "ParameterValue": "sat:18:00-sat:19:00"
+  }
+]

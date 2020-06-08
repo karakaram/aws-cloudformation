@@ -1,0 +1,54 @@
+[
+  {
+    "ParameterKey": "ParentClusterStack",
+    "ParameterValue": "cashbook-ecs-cluster"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "cashbook-alert"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "LoadBalancerHostPattern",
+    "ParameterValue": "ecs.aws.karakaram.com"
+  },
+  {
+    "ParameterKey": "LoadBalancerPath",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "LoadBalancerHttps",
+    "ParameterValue": "true"
+  },
+  {
+    "ParameterKey": "Image",
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/cashbook-rails"
+  },
+  {
+    "ParameterKey": "DesiredCount",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": "ecs."
+  },
+  {
+    "ParameterKey": "RailsMasiterKey",
+    "ParameterValue": "/cashbook/app/rails-master-key"
+  },
+  {
+    "ParameterKey": "DBHost",
+    "ParameterValue": "/cashbook/db/host"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/cashbook/db/password"
+  },
+  {
+    "ParameterKey": "RedisUrl",
+    "ParameterValue": "/cashbook/redis/url"
+  }
+]

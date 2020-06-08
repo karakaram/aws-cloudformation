@@ -1,0 +1,34 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentClientStack",
+    "ParameterValue": "cashbook-client-sg"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "cashbook-alert"
+  },
+  {
+    "ParameterKey": "EngineVersion",
+    "ParameterValue": "5.0.4"
+  },
+  {
+    "ParameterKey": "TransitEncryption",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "CacheNodeType",
+    "ParameterValue": "cache.t2.micro"
+  },
+  {
+    "ParameterKey": "SubDomainName",
+    "ParameterValue": "redis"
+  }
+]

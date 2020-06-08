@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "IPHome",
+    "ParameterValue": "/cashbook/ip/home"
+  },
+  {
+    "ParameterKey": "IPOffice",
+    "ParameterValue": "/cashbook/ip/office"
+  },
+  {
+    "ParameterKey": "IPOfficeGuest",
+    "ParameterValue": "/cashbook/ip/office-guest"
+  }
+]

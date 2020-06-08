@@ -1,0 +1,54 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentClientStack",
+    "ParameterValue": "cashbook-client-sg"
+  },
+  {
+    "ParameterKey": "ParentKmsKeyStack",
+    "ParameterValue": "cashbook-kms-key"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "cashbook-alert"
+  },
+  {
+    "ParameterKey": "DBBackupRetentionPeriod",
+    "ParameterValue": "3"
+  },
+  {
+    "ParameterKey": "DBMasterUsername",
+    "ParameterValue": "/cashbook/db/username"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/cashbook/db/password"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": "sdb."
+  },
+  {
+    "ParameterKey": "PreferredBackupWindow",
+    "ParameterValue": "17:00-18:00"
+  },
+  {
+    "ParameterKey": "PreferredMaintenanceWindow",
+    "ParameterValue": "sat:18:00-sat:19:00"
+  },
+  {
+    "ParameterKey": "MaxCapacity",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "MinCapacity",
+    "ParameterValue": "1"
+  }
+]

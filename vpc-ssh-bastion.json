@@ -1,0 +1,22 @@
+[
+    {
+      "ParameterKey": "ParentVPCStack",
+      "ParameterValue": "cashbook-vpc-3azs"
+    },
+    {
+      "ParameterKey": "ParentAlertStack",
+      "ParameterValue": "cashbook-alert"
+    },
+    {
+      "ParameterKey": "ParentZoneStack",
+      "ParameterValue": "cashbook-vpc-zone-public"
+    },
+    {
+      "ParameterKey": "ParentClientStack",
+      "ParameterValue": "cashbook-client-sg"
+    },
+    {
+      "ParameterKey": "KeyName",
+      "ParameterValue": "my-key"
+    }
+]

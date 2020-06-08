@@ -1,0 +1,473 @@
+---
+# If you want to change a ecs-optimized_AMI to the latest version, see https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ParentVPCStack:
+    Description: 'Stack name of parent VPC stack based on vpc/vpc-*azs.yaml template.'
+    Type: String
+  ParentZoneStack:
+    Description: 'Stack name of parent zone stack based on vpc/zone-*.yaml template.'
+    Type: String
+  ParentSSHBastionStack:
+    Description: 'Optional Stack name of parent SSH bastion host/instance stack based on vpc/vpc-*-bastion.yaml template.'
+    Type: String
+    Default: ''
+  ParentClientStack1:
+    Description: 'Optional stack name of parent Client Security Group stack based on state/client-sg.yaml template to allow network access from the service to whatever uses the client security group.'
+    Type: String
+  ParentSecurityGroupCloudFrontStack:
+    Description: 'Stack name of parent Security Group to allow network access from CloudFront.'
+    Type: String
+  ParentWAFStack:
+    Description: 'Stack name of parent WAF to allow network access from limited IP addresses.'
+    Type: String
+  CloudFrontSubDomainNameWithDot:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDot}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+  EC2SubDomainNameWithDot:
+    Description: 'Name that is used to create the DNS entry with trailing dot, e.g. §{SubDomainNameWithDot}§{HostedZoneName}. Leave blank for naked (or apex and bare) domain. Requires ParentZoneStack parameter!'
+    Type: String
+  SubnetsReach:
+    Description: 'Should the cluster have direct access to the Internet or do you prefer private subnets with NAT?'
+    Type: String
+    Default: Public
+    AllowedValues:
+      - Public
+      - Private
+  CloudFrontCertificateArn:
+    Description: 'Amazon Resource Name (ARN) of the certificate to associate with the CloudFront. If set, HTTP requests are redirected to HTTPS.'
+    Type: String
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  Image:
+    Description: 'The image to use for a container, which is passed directly to the Docker daemon. You can use images in the Docker Hub registry or specify other repositories (repository-url/image:tag).'
+    Type: String
+  EC2DesiredCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of max instances to launch in your ECS cluster.
+  ECSDesiredCount:
+    Type: Number
+    Default: '1'
+    Description: Number of tasks to launch in your ECS cluster.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t2.micro]
+    ConstraintDescription: Please choose a valid instance type.
+  RailsMasiterKey:
+    Description: 'A master key for Rails'
+    Type: String
+    NoEcho: true
+  DBHost:
+    Description: 'A host for the DataBase'
+    Type: String
+  DBMasterUsername:
+    Description: 'A master user name for the DataBase'
+    Type: String
+    NoEcho: true
+  DBMasterUserPassword:
+    Description: 'A password for the DataBase'
+    Type: String
+    NoEcho: true
+  RedisUrl:
+    Description: 'A url for the Redis'
+    Type: String
+
+Mappings:
+  # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+  AWSRegionToAMI:
+    ap-northeast-1:
+      AMIID: ami-0e37e42dff65024ae
+
+Conditions:
+  HasSSHBastionSecurityGroup: !Not [!Equals [!Ref ParentSSHBastionStack, '']]
+
+Resources:
+  EIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+
+  EC2Route53RecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      HostedZoneId: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneId'}
+      Name: !Sub
+        - '${SubDomainNameWithDot}${HostedZoneName}'
+        - SubDomainNameWithDot: !Ref EC2SubDomainNameWithDot
+          HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+      ResourceRecords:
+        - !Ref EIP
+      TTL: '60'
+      Type: A
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+
+  EC2SecurityGroupSSHBastion:
+    Type: AWS::EC2::SecurityGroup
+    Condition: HasSSHBastionSecurityGroup
+    Properties:
+      GroupDescription: !Sub '${AWS::StackName}-EC2SecurityGroup'
+      VpcId: {'Fn::ImportValue': !Sub '${ParentVPCStack}-VPC'}
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: {'Fn::ImportValue': !Sub '${ParentSSHBastionStack}-SecurityGroup'}
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'ecs-tasks.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource:
+                  - !GetAtt 'LogGroup.Arn'
+              - Effect: Allow
+                Action:
+                  - 'ssm:GetParameters'
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
+
+  TaskDefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: !Ref 'AWS::StackName'
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Name: app # if you change this, you also must change the AWS::ECS::Service
+          Image: !Ref Image
+          Memory: 300
+          PortMappings:
+            - ContainerPort: 3000 # if you change this, you also must change the AWS::ECS::Service
+              HostPort: 80
+              Protocol: tcp
+          Environment:
+            - Name: RAILS_ENV
+              Value: production
+            - Name: RAILS_SERVE_STATIC_FILES
+              Value: 1
+            - Name: RAILS_LOG_TO_STDOUT
+              Value: 1
+          Secrets:
+            - Name: RAILS_MASTER_KEY
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${RailsMasiterKey}'
+            - Name: DATABASE_HOST
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DBHost}'
+            - Name: DATABASE_USERNAME
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DBMasterUsername}'
+            - Name: DATABASE_PASSWORD
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DBMasterUserPassword}'
+            - Name: REDIS_URL
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${RedisUrl}'
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': !Ref 'LogGroup'
+              'awslogs-stream-prefix': app
+      ExecutionRoleArn: !GetAtt 'TaskExecutionRole.Arn'
+
+  TaskDefinitionDBMigrate:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: !Sub '${AWS::StackName}-db-migrate'
+      NetworkMode: bridge
+      ContainerDefinitions:
+        - Name: app # if you change this, you also must change the AWS::ECS::Service
+          Image: !Ref Image
+          Command: ['rake', 'db:migrate']
+          Memory: 100
+          Environment:
+            - Name: RAILS_ENV
+              Value: production
+            - Name: RAILS_SERVE_STATIC_FILES
+              Value: 1
+          Secrets:
+            - Name: RAILS_MASTER_KEY
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${RailsMasiterKey}'
+            - Name: DATABASE_HOST
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DBHost}'
+            - Name: DATABASE_USERNAME
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DBMasterUsername}'
+            - Name: DATABASE_PASSWORD
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${DBMasterUserPassword}'
+            - Name: REDIS_URL
+              ValueFrom: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${RedisUrl}'
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              'awslogs-region': !Ref 'AWS::Region'
+              'awslogs-group': !Ref 'LogGroup'
+              'awslogs-stream-prefix': app
+      ExecutionRoleArn: !GetAtt 'TaskExecutionRole.Arn'
+
+  EC2AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: EC2LaunchTemplate
+    Properties:
+      DesiredCapacity: !Ref 'EC2DesiredCapacity'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref 'EC2LaunchTemplate'
+        Version: !GetAtt EC2LaunchTemplate.LatestVersionNumber
+      MaxSize: !Ref 'MaxCapacity'
+      MinSize: 0
+      TerminationPolicies:
+        - OldestInstance
+      VPCZoneIdentifier: !Split [',', {'Fn::ImportValue': !Sub '${ParentVPCStack}-Subnets${SubnetsReach}'}]
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        WaitOnResourceSignals: true
+
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        EbsOptimized: true
+        ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMIID]
+        IamInstanceProfile:
+          Name: !Ref 'EC2InstanceProfile'
+        InstanceMarketOptions:
+          MarketType: spot
+        InstanceInitiatedShutdownBehavior: terminate
+        InstanceType: !Ref 'InstanceType'
+        KeyName: !Ref 'KeyName'
+        SecurityGroupIds:
+          - !If [HasSSHBastionSecurityGroup, {'Fn::ImportValue': !Sub '${ParentSSHBastionStack}-SecurityGroup'}, !Ref 'AWS::NoValue']
+          - Fn::ImportValue: !Sub '${ParentClientStack1}-ClientSecurityGroup'
+          - Fn::ImportValue: !Sub '${ParentSecurityGroupCloudFrontStack}-SecurityGroup1'
+          - Fn::ImportValue: !Sub '${ParentSecurityGroupCloudFrontStack}-SecurityGroup2'
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            yum install -y aws-cfn-bootstrap
+            trap '/opt/aws/bin/cfn-signal -e 1 --stack ${AWS::StackName} --resource EC2AutoScalingGroup --region ${AWS::Region}' ERR
+            echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+            yum install -y awscli
+            INSTANCEID=$(curl -s -m 60 http://169.254.169.254/latest/meta-data/instance-id)
+            aws ec2 associate-address --instance-id $INSTANCEID --allocation-id ${EIP.AllocationId} --region ${AWS::Region}
+            sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+            /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource EC2AutoScalingGroup --region ${AWS::Region}
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: cashbook
+
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref 'ECSCluster'
+      DesiredCount: !Ref 'ECSDesiredCount'
+      TaskDefinition: !Ref 'TaskDefinition'
+
+  ECSServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: ECSService
+    Properties:
+      MaxCapacity: !Ref 'MaxCapacity'
+      MinCapacity: 0
+      ResourceId: !Join ['', [service/, !Ref 'ECSCluster', /, !GetAtt [ECSService, Name]]]
+      RoleARN: !GetAtt [AutoscalingRole, Arn]
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Path: /
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecs:CreateCluster'
+                  - 'ecs:DeregisterContainerInstance'
+                  - 'ecs:DiscoverPollEndpoint'
+                  - 'ecs:Poll'
+                  - 'ecs:RegisterContainerInstance'
+                  - 'ecs:StartTelemetrySession'
+                  - 'ecs:Submit*'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'ec2:AssociateAddress'
+                Resource: '*'
+
+  AutoscalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [application-autoscaling.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+        - PolicyName: service-autoscaling
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'application-autoscaling:*'
+                  - 'cloudwatch:DescribeAlarms'
+                  - 'cloudwatch:PutMetricAlarm'
+                  - 'ecs:DescribeServices'
+                  - 'ecs:UpdateService'
+                Resource: '*'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'EC2Role']
+
+  CloudFrontDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Sub
+            - '${SubDomainNameWithDot}${HostedZoneName}'
+            - SubDomainNameWithDot: !Ref CloudFrontSubDomainNameWithDot
+              HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+        Comment: !Sub
+          - '${SubDomainNameWithDot}${HostedZoneName}'
+          - SubDomainNameWithDot: !Ref CloudFrontSubDomainNameWithDot
+            HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+        CustomErrorResponses:
+          - ErrorCode: 500
+            ErrorCachingMinTTL: 5
+          - ErrorCode: 502
+            ErrorCachingMinTTL: 5
+          - ErrorCode: 504
+            ErrorCachingMinTTL: 5
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - POST
+            - PATCH
+            - DELETE
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          DefaultTTL: 3600 # in seconds
+          ForwardedValues:
+            Cookies:
+              Forward: all
+            Headers:
+              - Accept
+              - Accept-Encoding
+              - Accept-Language
+              - Authorization
+              - CloudFront-Forwarded-Proto
+              - Host
+              - Referer
+            QueryString: true
+          MaxTTL: 86400 # in seconds
+          MinTTL: 60 # in seconds
+          TargetOriginId: myCustomOrigin
+          ViewerProtocolPolicy: 'redirect-to-https'
+        Enabled: true
+        HttpVersion: http2
+        Origins:
+          - CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginKeepaliveTimeout: 5
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 60
+              OriginSSLProtocols:
+                - TLSv1
+            DomainName: !Sub
+              - '${SubDomainNameWithDot}${HostedZoneName}'
+              - SubDomainNameWithDot: !Ref EC2SubDomainNameWithDot
+                HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+            Id: myCustomOrigin
+        PriceClass: 'PriceClass_All'
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CloudFrontCertificateArn
+          MinimumProtocolVersion: 'TLSv1.1_2016'
+          SslSupportMethod: 'sni-only'
+        WebACLId: {'Fn::ImportValue': !Sub '${ParentWAFStack}-WAFWebACLId'}
+
+  CloudFrontRoute53RecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      HostedZoneId: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneId'}
+      Name: !Sub
+        - '${SubDomainNameWithDot}${HostedZoneName}'
+        - SubDomainNameWithDot: !Ref CloudFrontSubDomainNameWithDot
+          HostedZoneName: {'Fn::ImportValue': !Sub '${ParentZoneStack}-HostedZoneName'}
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt 'CloudFrontDistribution.DomainName'
+
+Outputs:
+  Cluster:
+    Value: !Ref 'ECSCluster'
+    Export:
+      Name: !Sub '${AWS::StackName}-Cluster'
+  Service:
+    Value: !Ref 'ECSService'
+  ServiceName:
+    Description: 'ECSServiceName'
+    Value: !GetAtt 'ECSService.Name'
+    Export:
+      Name: !Sub '${AWS::StackName}-ServiceName'
+  TaskDefinition:
+    Value: !Ref 'TaskDefinition'

@@ -1,0 +1,289 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CodePipeline
+
+Parameters:
+  ParentClusterStack:
+    Description: 'Stack name of parent Cluster stack based on fargate/cluster.yaml template.'
+    Type: String
+  ParentServiceStack:
+    Description: 'Stack name of parent Service stack based on fargate/service-cluster-alb template.'
+    Type: String
+  GitHubOwner:
+    Type: String
+  RepositoryName:
+    Type: String
+  BranchName:
+    Type: String
+  GitHubSecret:
+    Type: AWS::SSM::Parameter::Value<String>
+    NoEcho: true
+  GitHubOAuthToken:
+    Type: AWS::SSM::Parameter::Value<String>
+    NoEcho: true
+  ArtifactStoreBucket:
+    Type: String
+  CodePipelineRoleArn:
+    Type: String
+
+Resources:
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+      Path: /
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: CloudWatchLogsAccess
+                Effect: Allow
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-docker
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-docker:*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-db-migrate
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-db-migrate:*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-scale-up
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-scale-up:*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-scale-down
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${RepositoryName}-scale-down:*
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Sid: S3Access
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource:
+                  - !Sub arn:aws:s3:::${ArtifactStoreBucket}
+                  - !Sub arn:aws:s3:::${ArtifactStoreBucket}/*
+              - Sid: ECRAccess
+                Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetAuthorizationToken
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Resource: "*"
+              - Sid: CloudFormationAccess
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStackResource
+                Resource: "*"
+              - Sid: EC2Access
+                Effect: Allow
+                Action:
+                  - autoscaling:UpdateAutoScalingGroup
+                Resource: "*"
+              - Sid: ECSAccess
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                  - ecs:DescribeTasks
+                  - ecs:DescribeTaskDefinition
+                  - ecs:ListContainerInstances
+                  - ecs:RunTask
+                  - ecs:RegisterTaskDefinition
+                Resource: "*"
+
+  PipelineProdWebhook:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubSecret
+      Filters:
+        -
+          JsonPath: "$.ref"
+          MatchEquals: refs/heads/{Branch}
+      TargetPipeline: !Ref CodePipelineProd
+      TargetAction: SourceAction
+      Name: AppPipelineProdWebhook
+      TargetPipelineVersion: !GetAtt CodePipelineProd.Version
+      RegisterWithThirdParty: true
+
+  CodeBuildProjectDocker:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${RepositoryName}-docker'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Location: LOCAL
+        Modes:
+          - LOCAL_DOCKER_LAYER_CACHE
+        Type: LOCAL
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: ECR_REPOSITORY_NAME
+            Value: !Ref RepositoryName
+          - Name: RAILS_ENV
+            Value: production
+          - Name: DATABASE_HOST
+            Value: wdb.aws.karakaram.com
+      Source:
+        BuildSpec: codebuild/buildspec_docker.yml
+        Type: CODEPIPELINE
+
+  CodeBuildProjectDBMigrate:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${RepositoryName}-db-migrate'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: RAILS_ENV
+            Value: production
+          - Name: DATABASE_HOST
+            Value: wdb.aws.karakaram.com
+      Source:
+        BuildSpec: codebuild/buildspec_db_migrate.yml
+        Type: CODEPIPELINE
+
+  CodeBuildProjectScaleUp:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${RepositoryName}-scale-up'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+      Source:
+        BuildSpec: codebuild/buildspec_scale_up.yml
+        Type: CODEPIPELINE
+
+  CodeBuildProjectScaleDown:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${RepositoryName}-scale-down'
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+      Source:
+        BuildSpec: codebuild/buildspec_scale_down.yml
+        Type: CODEPIPELINE
+
+  CodePipelineProd:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub ${RepositoryName}-prod
+      RoleArn: !Ref CodePipelineRoleArn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStoreBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref RepositoryName
+                Branch: !Ref BranchName
+                OAuthToken: !Ref GitHubOAuthToken
+                PollForSourceChanges: false
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              OutputArtifacts:
+                - Name: BuildOutput
+              Configuration:
+                ProjectName: !Ref CodeBuildProjectDocker
+        - Name: Deploy
+          Actions:
+            - Name: DBMigrateAction
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProjectDBMigrate
+              RunOrder: 1
+            - Name: ScaleUpAction
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProjectScaleUp
+              RunOrder: 2
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: BuildOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: {'Fn::ImportValue': !Sub '${ParentClusterStack}-Cluster'}
+#                ServiceName: {'Fn::ImportValue': !Sub '${ParentServiceStack}-ServiceName'}
+                ServiceName: {'Fn::ImportValue': !Sub '${ParentClusterStack}-ServiceName'}
+              RunOrder: 3
+            - Name: ScaleDownAction
+              InputArtifacts:
+                - Name: SourceOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProjectScaleDown
+              RunOrder: 4

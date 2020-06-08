@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentAlertStack",
+    "ParameterValue": "cashbook-alert"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "LoadBalancerCertificateArn",
+    "ParameterValue": "arn:aws:acm:ap-northeast-1:274682760725:certificate/23f25ad8-c784-4d1b-8283-5da7761a81ca"
+  },
+  {
+    "ParameterKey": "SubDomainNameWithDot",
+    "ParameterValue": "fargate."
+  }
+]

@@ -1,0 +1,55 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'State: RDS Aurora Serverless MySQL, a cloudonaut.io template, sponsored by https://github.com/ngault'
+Parameters:
+  IPHome:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: master
+  IPOffice:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: master
+  IPOfficeGuest:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: master
+Resources:
+  WAFIPSet:
+    Type: AWS::WAF::IPSet
+    Properties:
+      Name: !Sub '${AWS::StackName}-ipset'
+      IPSetDescriptors:
+        - Type: IPV4
+          Value: !Ref 'IPHome'
+        - Type: IPV4
+          Value: !Ref 'IPOffice'
+        - Type: IPV4
+          Value: !Ref 'IPOfficeGuest'
+
+  WAFRule:
+    Type: AWS::WAF::Rule
+    Properties:
+      Name: !Sub '${AWS::StackName}-rule'
+      MetricName: CashbookWAFRule
+      Predicates:
+        - DataId: !Ref 'WAFIPSet'
+          Negated: false
+          Type: IPMatch
+
+  WAFWebACL:
+    Type: AWS::WAF::WebACL
+    Properties:
+      DefaultAction:
+        Type: BLOCK
+      MetricName: CashbookWAFWebACL
+      Name: !Sub '${AWS::StackName}-webacl'
+      Rules:
+        - Action:
+            Type: ALLOW
+          Priority: 1
+          RuleId: !Ref 'WAFRule'
+
+Outputs:
+  WAFWebACLId:
+    Description: 'The name of the cluster.'
+    Value: !Ref 'WAFWebACL'
+    Export:
+      Name: !Sub '${AWS::StackName}-WAFWebACLId'

@@ -1,0 +1,86 @@
+[
+  {
+    "ParameterKey": "ParentVPCStack",
+    "ParameterValue": "cashbook-vpc-3azs"
+  },
+  {
+    "ParameterKey": "ParentZoneStack",
+    "ParameterValue": "cashbook-vpc-zone-public"
+  },
+  {
+    "ParameterKey": "ParentSSHBastionStack",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ParentClientStack1",
+    "ParameterValue": "cashbook-client-sg"
+  },
+  {
+    "ParameterKey": "ParentSecurityGroupCloudFrontStack",
+    "ParameterValue": "cashbook-cloudfront-sg"
+  },
+  {
+    "ParameterKey": "ParentWAFStack",
+    "ParameterValue": "cashbook-waf"
+  },
+  {
+    "ParameterKey": "CloudFrontSubDomainNameWithDot",
+    "ParameterValue": "cashbook."
+  },
+  {
+    "ParameterKey": "EC2SubDomainNameWithDot",
+    "ParameterValue": "cashbook-ec2."
+  },
+  {
+    "ParameterKey": "SubnetsReach",
+    "ParameterValue": "Public"
+  },
+  {
+    "ParameterKey": "CloudFrontCertificateArn",
+    "ParameterValue": "arn:aws:acm:us-east-1:274682760725:certificate/40bfffaf-f253-4387-9e21-ea06c654dcbf"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "my-key"
+  },
+  {
+    "ParameterKey": "Image",
+    "ParameterValue": "274682760725.dkr.ecr.ap-northeast-1.amazonaws.com/cashbook-rails"
+  },
+  {
+    "ParameterKey": "EC2DesiredCapacity",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "MaxCapacity",
+    "ParameterValue": "2"
+  },
+  {
+    "ParameterKey": "ECSDesiredCount",
+    "ParameterValue": "1"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t3.micro"
+  },
+  {
+    "ParameterKey": "RailsMasiterKey",
+    "ParameterValue": "/cashbook/app/rails-master-key"
+  },
+  {
+    "ParameterKey": "DBHost",
+    "ParameterValue": "/cashbook/db/host"
+  },
+  {
+    "ParameterKey": "DBMasterUsername",
+    "ParameterValue": "/cashbook/db/username"
+  },
+  {
+    "ParameterKey": "DBMasterUserPassword",
+    "ParameterValue": "/cashbook/db/password"
+  },
+  {
+    "ParameterKey": "RedisUrl",
+    "ParameterValue": "/cashbook/redis/url"
+  }
+]

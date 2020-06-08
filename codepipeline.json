@@ -1,0 +1,38 @@
+[
+  {
+    "ParameterKey": "ParentClusterStack",
+    "ParameterValue": "cashbook-ecs-spot"
+  },
+  {
+    "ParameterKey": "ParentServiceStack",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "GitHubOwner",
+    "ParameterValue": "karakaram"
+  },
+  {
+    "ParameterKey": "RepositoryName",
+    "ParameterValue": "cashbook-rails"
+  },
+  {
+    "ParameterKey": "BranchName",
+    "ParameterValue": "master"
+  },
+  {
+    "ParameterKey": "GitHubSecret",
+    "ParameterValue": "/cashbook/github/secret"
+  },
+  {
+    "ParameterKey": "GitHubOAuthToken",
+    "ParameterValue": "/cashbook/github/oauth-token"
+  },
+  {
+    "ParameterKey": "ArtifactStoreBucket",
+    "ParameterValue": "codepipeline-ap-northeast-1-356849978271"
+  },
+  {
+    "ParameterKey": "CodePipelineRoleArn",
+    "ParameterValue": "arn:aws:iam::274682760725:role/AWS-CodePipeline-Service"
+  }
+]
